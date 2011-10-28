@@ -8,3 +8,11 @@ require File.expand_path(
 prototype = Htk::HTKHMMModel.new("proto",4,8)
 
 prototype.write
+
+
+config_file = Htk::ConfigATROS.new
+config_file.SOURCEFORMAT="ATROS"
+config_file.NUMCEPS=8
+config_file.TARGETKIND="MFCC"
+
+config_file.write
