@@ -19,3 +19,5 @@ pkg
 .idea
 *.ops
 *.txt
+*.mlf
+*.htk

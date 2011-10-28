@@ -1,4 +1,4 @@
-module GenerateHtkLanguageModel
+module Htk
   require 'ruby-debug'
   class MultiSampleStatisticsList
     attr_reader :consolidated_statistics

@@ -1,5 +1,4 @@
-module GenerateHtkLanguageModel
-  require 'ap'
+module Htk
   class SampleStatistics
     attr_reader :statistics
     def initialize(ex_name)

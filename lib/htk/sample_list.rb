@@ -1,5 +1,4 @@
-module GenerateHtkLanguageModel
-  require 'ap'
+module Htk
   class SampleList
     def initialize(ex_file_name)
       @file_name = ex_file_name

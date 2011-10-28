@@ -1,4 +1,4 @@
-module GenerateHtkLanguageModel
+module Htk
   require 'graphviz'
   class HTKLanguageModel
     def initialize
@@ -15,7 +15,7 @@ module GenerateHtkLanguageModel
     end
 
     def add_state(ex_label,ex_type=:NORMAL)
-      @states.push(State.new(@states.size, ex_label,ex_type))
+      @states.push(HTKLanguageState.new(@states.size, ex_label,ex_type))
       @start_state = @states.last if ex_type == :START
       @end_state = @states.last if ex_type == :END
       @states.size-1
