@@ -1,5 +1,5 @@
 module Htk
-  require 'ap'
+  require 'fileutils'
   require 'ostruct'
   class ConfigATROS < OpenStruct
     FILE_NAME="config_ATROS"
@@ -11,5 +11,21 @@ module Htk
           end
       end
     end
+
+    def clean_up
+      FileUtils.rm FILE_NAME
+    end
+
+    def do_with_file(&proc)
+      write
+      yield unless proc.nil?
+      clean_up
+    end
+
+    def name
+      FILE_NAME
+    end
+
+
   end
 end

@@ -5,7 +5,7 @@ module Htk
    NEXT_TRANSITION_PROBABILITY=4.000e-01
 
    attr_reader :position,:feature_space_dimension
-   attr_accessor :self_prob, :next_prob
+   attr_accessor :self_prob, :next_prob, :mean, :variance, :gconst
 
    def initialize(position,feature_space_dim,&proc)
     @position = position
@@ -13,6 +13,7 @@ module Htk
     @feature_space_dimension = feature_space_dim
     @mean = Array.new(@feature_space_dimension,0.0)
     @variance = Array.new(@feature_space_dimension,1.0)
+    @gconst = nil
     @self_prob = SELF_TRANSITION_PROBABILITY
     @next_prob = NEXT_TRANSITION_PROBABILITY
     yield(self) unless proc.nil?
@@ -51,15 +52,20 @@ module Htk
    end
 
     def distribution_to_s
-      "<State> #{@position+1}\n" + mean_to_s + variance_to_s
+      "<STATE> #{@position+1}\n" + mean_to_s + variance_to_s + gconst_to_s
     end
 
     def mean_to_s
-      @mean.inject("<Mean> #{@feature_space_dimension}\n"){|res,val| res+= "#{val.to_s} "}+"\n"
+      @mean.inject("<MEAN> #{@feature_space_dimension}\n"){|res,val| res+= "#{val.to_s} "}+"\n"
     end
 
    def variance_to_s
-     @variance.inject("<Variance> #{@feature_space_dimension}\n"){|res,val| res+= "#{val.to_s} "}
+     @variance.inject("<VARIANCE> #{@feature_space_dimension}\n"){|res,val| res+= "#{val.to_s} "}+"\n"
+   end
+
+   def gconst_to_s
+    return "<GCONST> #{@gconst}" unless @gconst.nil?
+    ""
    end
 
     def transition_to_s
