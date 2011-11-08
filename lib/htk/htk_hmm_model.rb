@@ -1,15 +1,16 @@
 module Htk
   class HTKHMMModel
+    require 'ruby-debug'
 
     SELF_TRANSITION_PROBABILITY=6.000e-01
     NEXT_TRANSITION_PROBABILITY=4.000e-01
 
-    attr_reader :name, :num_states
-    attr_accessor :vec_finalizer, :stream_info
+    attr_reader :num_states
+    attr_accessor :name, :vec_finalizer, :stream_info, :states
 
     def initialize(ex_name,ex_num_states,ex_feature_space_dimension,&proc)
       @name = ex_name
-      @num_states = ex_num_states + 2
+      @num_states = ex_num_states
       @feature_space_dimension = ex_feature_space_dimension
       @self_prob = SELF_TRANSITION_PROBABILITY
       @next_prob = NEXT_TRANSITION_PROBABILITY
@@ -73,9 +74,12 @@ module Htk
     def HTKHMMModel.load(file_name)
 
       status = :init
+      state_status = :init
       model = nil
-      vec_size,num_states  = -1,-1
+      vec_size,num_states,num_values  = -1,-1,-1
       vec_finalizer,stream_info,name = "","",""
+      current_state = -1
+
       File.open(file_name,"r").each_line do |line|
         case status
           when :init
@@ -101,91 +105,127 @@ module Htk
               raise "After a <BEGINHMM> tag line <NUMSTATES> is expected"
             end
           when :read_states
-
-
+            if is_state_initial_line? line
+              current_state = extract_state_number line
+              state_status = :read_state
+            elsif is_state_mean_line? line and state_status == :read_state
+              num_values = extract_state_mean line
+              state_status = :mean_header
+            elsif state_status == :mean_header
+              model.states[current_state].mean = extract_values(line,num_values)
+              state_status = :read_mean
+            elsif is_state_variance_line? line and state_status == :read_mean
+              num_values = extract_state_variance line
+              state_status = :variance_header
+            elsif state_status == :variance_header
+              model.states[current_state].mean = extract_values(line,num_values)
+              state_status = :read_variance
+            elsif is_state_gconst_line? line  and state_status == :read_variance
+              model.states[current_state].gconst= extract_gconst line
+              state_status = :init
+            elsif is_transition_initial_line? line
+              status = :read_transitions
+              current_state = 0
+            end
+          when :read_transitions
+            if is_end_hmm_line? line
+              status = :init
+            elsif
+              model.states[current_state].transitions= extract_values(line,num_states)
+              current_state +=1
+            end
         end
 
       end
+      return model
     end
 
-    def is_vecsize_line?(line)
+    def HTKHMMModel.is_vecsize_line?(line)
       line =~ /<VECSIZE>/
     end
 
-    def extract_vecsize(line)
+    def HTKHMMModel.extract_vecsize(line)
       vals = line.split(/<|>/).delete_if{|val|val==""}
       vals[vals.index("VECSIZE")+1].to_i
     end
 
-    def extract_vecfinalizer(line)
-      vals = line.split(/<|>/).delete_if{|val|val==""}
+    def HTKHMMModel.extract_vecfinalizer(line)
+      vals = line.split(/<|>/).delete_if{|val|val=="" or val == "\n"}
       vals[vals.index("VECSIZE")+2..vals.size-1].inject(""){|res,val| res +="<#{val}>"}
     end
 
-    def is_streaminfo_line?(line)
+    def HTKHMMModel.is_streaminfo_line?(line)
       line =~ /<STREAMINFO>/
     end
 
-    def extract_streaminfo(line)
+    def HTKHMMModel.extract_streaminfo(line)
       line.split(" ",2)[1]
     end
 
-    def is_name_line?(line)
+    def HTKHMMModel.is_name_line?(line)
       line =~ /~h/
     end
 
-    def extract_name(line)
+    def HTKHMMModel.extract_name(line)
       line.split[1].split("\"")[1]
     end
 
-    def is_start_hmm_line?(line)
+    def HTKHMMModel.is_start_hmm_line?(line)
       line =~ /<BEGINHMM>/
     end
 
-    def is_num_states_line?(line)
+    def HTKHMMModel.is_num_states_line?(line)
       line =~ /<NUMSTATES>/
     end
 
-    def extract_num_states(line)
+    def HTKHMMModel.extract_num_states(line)
       line.split[1].to_i
     end
 
-    def is_end_hmm_line?(line)
+    def HTKHMMModel.is_end_hmm_line?(line)
       line =~ /<ENDHMM>/
     end
 
-    def is_state_initial_line?(line)
+    def HTKHMMModel.is_state_initial_line?(line)
       line =~ /<STATE>/
     end
 
-    def extract_state_number(line)
+    def HTKHMMModel.extract_state_number(line)
       line.split[1].to_i
     end
 
 
-    def is_state_variance_line?(line)
+    def HTKHMMModel.is_state_variance_line?(line)
       line =~ /<VARIANCE>/
     end
 
-    def is_mean_variance_line?(line)
+    def HTKHMMModel.extract_state_variance(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMModel.is_state_mean_line?(line)
       line =~ /<MEAN>/
     end
 
-    def extract_values(line,num_values)
+    def HTKHMMModel.extract_state_mean(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMModel.extract_values(line,num_values)
       values = line.split
       raise "incorrect number of values found" if values.size != num_values
       values.map{|value| value.to_f}
     end
 
-    def is_state_gconst_line?(line)
+    def HTKHMMModel.is_state_gconst_line?(line)
       line =~ /<GCONST>/
     end
 
-    def extract_gconst(line)
+    def HTKHMMModel.extract_gconst(line)
       line.split[1].to_f
     end
 
-    def is_transition_initial_line?(line)
+    def HTKHMMModel.is_transition_initial_line?(line)
       line =~ /<TRANSP>/
     end
 

@@ -5,7 +5,7 @@ module Htk
    NEXT_TRANSITION_PROBABILITY=4.000e-01
 
    attr_reader :position,:feature_space_dimension
-   attr_accessor :self_prob, :next_prob, :mean, :variance, :gconst
+   attr_accessor :self_prob, :next_prob, :mean, :variance, :gconst, :transitions
 
    def initialize(position,feature_space_dim,&proc)
     @position = position

@@ -16,3 +16,9 @@ config_file.NUMCEPS=8
 config_file.TARGETKIND="MFCC"
 
 config_file.write
+
+read_model = Htk::HTKHMMModel.load("proto")
+
+read_model.name = "pepe"
+
+read_model.write
