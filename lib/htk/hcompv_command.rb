@@ -1,12 +1,15 @@
 module Htk
   class HCompVCommand
     NAME = "HCompV"
+    attr_accessor :prototype
     attr_reader :parameters
-    def initialize
+    def initialize(&proc)
+      @prototype = nil
       initialize_valid_parameters
+      yield(self) unless proc.nil?
     end
 
-    def initialize_valid_parameters(&proc)
+    def initialize_valid_parameters
       @parameters = CommandParameters.new
       @parameters.add_valid_parameter(:C,:single)
       @parameters.add_valid_parameter(:S,:single)
@@ -26,11 +29,17 @@ module Htk
       @parameters.add_valid_parameter(:L,:single)
       @parameters.add_valid_parameter(:M,:single)
       @parameters.add_valid_parameter(:X,:single)
-
-      yield(self) unless proc.nil?
     end
 
-    def run(config_atros)
+    def run(config_atros=nil)
+      if config_atros.nil?
+        system to_s
+      else
+        run_with_config(config_atros)
+      end
+    end
+
+    def run_with_config(config_atros)
       @parameters[:C]=config_atros.name
       config_atros.do_with_file do
         system to_s
@@ -38,7 +47,7 @@ module Htk
     end
 
     def to_s
-      "#{NAME}#{@parameters.to_s}"
+      "#{NAME}#{@parameters.to_s} #{@prototype}"
     end
 
   end

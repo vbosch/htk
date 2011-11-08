@@ -7,6 +7,8 @@ require File.expand_path(
 
 hmm = Htk::HTKHMMModel.new("paco",4,8)
 composition = Htk::HTKHMMComposition.new("proto",8)
+
+composition.vfloors= Htk::VFloors.new("varFloor1",1,[2.581119e-11])
 composition.add_hmm(hmm)
 composition.write
 
