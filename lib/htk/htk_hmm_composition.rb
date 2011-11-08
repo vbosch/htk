@@ -1,9 +1,8 @@
 module Htk
-  require 'ruby-debug'
-  require 'ap'
+  require 'fileutils'
   class HTKHMMComposition
 
-    attr_accessor :stream_info, :vec_finalizer, :name
+    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors
 
     def initialize(ex_name,ex_vec_size=-1,ex_stream_info ="",ex_vec_finalizer = "<MFCC>" )
       @name = ex_name
@@ -11,6 +10,7 @@ module Htk
       @vec_finalizer = ex_vec_finalizer
       @vec_size = ex_vec_size
       @hmms = Hash.new
+      @vfloors = nil
     end
 
     def add_hmm(hmm)
@@ -22,6 +22,7 @@ module Htk
     def write
       File.open(@name,"w") do |file|
         write_header(file)
+        write_vfloors(file)
         write_hmms(file)
       end
     end
@@ -32,11 +33,17 @@ module Htk
       file.puts "<VECSIZE> #{@vec_size} #{@vec_finalizer}"
     end
 
+    def write_vfloors(file)
+      @vfloors.write_to_descriptor(file) unless @vfloors.nil?
+    end
+
     def write_hmms(file)
       @hmms.each_value{|hmm| hmm.write_as_composition(file)}
     end
 
     def HTKHMMComposition.load(file_name)
+
+      raise "specified file does not exist" unless File.exists? file_name
 
       composition = nil
       vec_size  = -1
@@ -48,16 +55,17 @@ module Htk
           vec_finalizer=extract_vecfinalizer line
         elsif is_streaminfo_line? line
           stream_info=extract_streaminfo line
-        elsif is_name_line? line
-          name = extract_name(line)
+        elsif VFloors.is_vfloor_name_line? line
           composition = HTKHMMComposition.new(file_name,vec_size,stream_info,vec_finalizer) if composition.nil?
-          composition.add_hmm(HTKHMMModel.read(file,name,vec_size))
+          composition.vfloors = VFloors.load_from_file_descriptor(file,VFloors.extract_vfloor_name(line))
+        elsif HTKHMMModel.is_name_line? line
+          composition.add_hmm(HTKHMMModel.read(file,HTKHMMModel.extract_name(line),vec_size))
         end
       end
       composition
     end
 
-     def HTKHMMComposition.is_vecsize_line?(line)
+    def HTKHMMComposition.is_vecsize_line?(line)
       line =~ /<VECSIZE>/
     end
 
@@ -79,12 +87,38 @@ module Htk
       line.split(" ",2)[1]
     end
 
-    def HTKHMMComposition.is_name_line?(line)
-      line =~ /~h/
+    def HTKHMMComposition.compose_from_morpheme_list(morpheme_list,prototype)
+
     end
 
-    def HTKHMMComposition.extract_name(line)
-      line.split[1].split("\"")[1]
+    def reestimate_from_training_data(fVar,vVar,training_list,directory,config_file)
+      command = HCompVCommand.new do |command|
+        command.parameters[:A]=true
+        command.parameters[:T]=1
+        command.parameters[:m]=true
+        command.parameters[:m]=true
+        command.parameters[:f]=fVar
+        command.parameters[:v]=vVar
+        command.parameters[:S]=training_list
+        #command.parameters[:M]=directory
+        command.prototype = @name
+      end
+
+
+      FileUtils.cd(directory) do
+        write
+        command.run(config_file)
+      end
+
+
+    end
+
+    def duplicate_gaussians
+
+    end
+
+    def train(iterations)
+
     end
 
   end

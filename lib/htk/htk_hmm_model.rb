@@ -62,6 +62,12 @@ module Htk
 
     end
 
+    def set_state_distributions(mean,variance,gconst)
+      @states[1...@num_states-1].each do |state|
+        state.set_probability_distribution(mean,variance,gconst)
+      end
+    end
+
     def write_transitions(file)
       file.puts "<TRANSP> #{@num_states}"
       @states.each do |state|
@@ -76,10 +82,6 @@ module Htk
 
 
     def HTKHMMModel.read(file,name,vec_size)
-
-      puts file
-      puts name
-      puts vec_size
       status = :init
       state_status = :init
       model = nil
@@ -94,7 +96,6 @@ module Htk
           when :num_states
             if is_num_states_line? line
               num_states = extract_num_states line
-              puts vec_size
               model = HTKHMMModel.new(name,num_states,vec_size)
               status = :read_states
             else

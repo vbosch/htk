@@ -30,6 +30,12 @@ module Htk
     end
    end
 
+   def set_probability_distribution(ex_mean,ex_variance,ex_gconst)
+     @mean = ex_mean
+     @variance = ex_variance
+     @gconst = ex_gconst
+   end
+
    def HTKHMMState.start_state(feature_space_dimension,num_states)
      tmp=HTKHMMState.new(0,feature_space_dimension)
      tmp.initialize_transitions(num_states,:start)
@@ -68,10 +74,10 @@ module Htk
     ""
    end
 
-    def transition_to_s
-      @transitions.inject(""){|res,val| res+= "#{sprintf("%e",val)} "}
+  def transition_to_s
+    @transitions.inject(""){|res,val| res+= "#{sprintf("%e",val)} "}
 
-    end
+  end
 
 
 
