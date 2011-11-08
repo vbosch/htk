@@ -5,9 +5,10 @@ require File.expand_path(
 
 # Put your code here
 
-prototype = Htk::HTKHMMModel.new("proto",4,8)
-
-prototype.write
+hmm = Htk::HTKHMMModel.new("paco",4,8)
+composition = Htk::HTKHMMComposition.new("proto",8)
+composition.add_hmm(hmm)
+composition.write
 
 
 config_file = Htk::ConfigATROS.new
@@ -17,8 +18,11 @@ config_file.TARGETKIND="MFCC"
 
 config_file.write
 
-read_model = Htk::HTKHMMModel.load("proto")
 
-read_model.name = "pepe"
+composition = Htk::HTKHMMComposition.load("proto")
 
-read_model.write
+composition.name = "arturo"
+
+composition.write
+
+

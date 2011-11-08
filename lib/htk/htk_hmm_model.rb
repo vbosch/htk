@@ -1,12 +1,11 @@
 module Htk
   class HTKHMMModel
-    require 'ruby-debug'
 
     SELF_TRANSITION_PROBABILITY=6.000e-01
     NEXT_TRANSITION_PROBABILITY=4.000e-01
 
     attr_reader :num_states
-    attr_accessor :name, :vec_finalizer, :stream_info, :states
+    attr_accessor :name,:states
 
     def initialize(ex_name,ex_num_states,ex_feature_space_dimension,&proc)
       @name = ex_name
@@ -14,8 +13,6 @@ module Htk
       @feature_space_dimension = ex_feature_space_dimension
       @self_prob = SELF_TRANSITION_PROBABILITY
       @next_prob = NEXT_TRANSITION_PROBABILITY
-      @stream_info=""
-      @vec_finalizer = "<MFCC>"
       yield(self) unless proc.nil?
       initialize_states
     end
@@ -34,6 +31,14 @@ module Htk
       @states.push HTKHMMState.end_state(@feature_space_dimension,@num_states)
     end
 
+
+    def write_as_composition(file)
+      write_header(file)
+      write_states(file)
+      write_transitions(file)
+      write_footer(file)
+    end
+
     def write
       File.open(@name,"w") do |file|
         write_header(file)
@@ -44,9 +49,6 @@ module Htk
     end
 
     def write_header(file)
-      file.puts "~o "
-      file.puts "<STREAMINFO> #{@stream_info}" unless @stream_info.empty?
-      file.puts "<VECSIZE> #{@feature_space_dimension} #{@vec_finalizer}"
       file.puts "~h \"#{@name}\""
       file.puts "<BEGINHMM>"
     end
@@ -71,35 +73,29 @@ module Htk
       file.puts "<ENDHMM>"
     end
 
-    def HTKHMMModel.load(file_name)
 
+
+    def HTKHMMModel.read(file,name,vec_size)
+
+      puts file
+      puts name
+      puts vec_size
       status = :init
       state_status = :init
       model = nil
-      vec_size,num_states,num_values  = -1,-1,-1
-      vec_finalizer,stream_info,name = "","",""
+      num_states,num_values  = -1,-1,-1
       current_state = -1
-
-      File.open(file_name,"r").each_line do |line|
+      file.each_line do |line|
         case status
           when :init
-            if is_vecsize_line? line
-              vec_size=extract_vecsize line
-              vec_finalizer=extract_vecfinalizer line
-            elsif is_streaminfo_line? line
-              stream_info=extract_streaminfo line
-            elsif is_name_line? line
-              name = extract_name line
-              raise "internal - external name mismatch" if name != file_name
-            elsif is_start_hmm_line? line
+            if is_start_hmm_line? line
               status = :num_states
             end
           when :num_states
             if is_num_states_line? line
               num_states = extract_num_states line
+              puts vec_size
               model = HTKHMMModel.new(name,num_states,vec_size)
-              model.vec_finalizer = vec_finalizer
-              model.stream_info= stream_info
               status = :read_states
             else
               raise "After a <BEGINHMM> tag line <NUMSTATES> is expected"
@@ -129,37 +125,14 @@ module Htk
             end
           when :read_transitions
             if is_end_hmm_line? line
-              status = :init
+              status = :end
+              return model
             elsif
               model.states[current_state].transitions= extract_values(line,num_states)
               current_state +=1
             end
         end
-
       end
-      return model
-    end
-
-    def HTKHMMModel.is_vecsize_line?(line)
-      line =~ /<VECSIZE>/
-    end
-
-    def HTKHMMModel.extract_vecsize(line)
-      vals = line.split(/<|>/).delete_if{|val|val==""}
-      vals[vals.index("VECSIZE")+1].to_i
-    end
-
-    def HTKHMMModel.extract_vecfinalizer(line)
-      vals = line.split(/<|>/).delete_if{|val|val=="" or val == "\n"}
-      vals[vals.index("VECSIZE")+2..vals.size-1].inject(""){|res,val| res +="<#{val}>"}
-    end
-
-    def HTKHMMModel.is_streaminfo_line?(line)
-      line =~ /<STREAMINFO>/
-    end
-
-    def HTKHMMModel.extract_streaminfo(line)
-      line.split(" ",2)[1]
     end
 
     def HTKHMMModel.is_name_line?(line)
