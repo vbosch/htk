@@ -108,9 +108,10 @@ module Htk
       FileUtils.cd(directory) do
         write
         command.run(config_file)
+        new_model =HTKHMMComposition.load(@name)
       end
 
-
+      return new_model
     end
 
     def duplicate_gaussians
