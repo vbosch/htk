@@ -120,9 +120,9 @@ module Htk
 
       new_composition= HTKHMMComposition.new(ex_name,prototype.vec_size,prototype.stream_info,prototype.vec_finalizer)
 
-      mean = prototype.hmms.first[1].states[1].mean
-      variance = prototype.hmms.first[1].states[1].variance
-      gconst = prototype.hmms.first[1].states[1].gconst
+      mean = prototype.hmms.first[1].states[1][0].mean
+      variance = prototype.hmms.first[1].states[1][0].variance
+      gconst = prototype.hmms.first[1].states[1][0].gconst
 
       morpheme_list.each do |morpheme|
         hmm = Htk::HTKHMMModel.new(morpheme,prototype.hmms.first[1].num_states,prototype.vec_size)
@@ -151,7 +151,6 @@ module Htk
       new_model = nil
       FileUtils.cd(directory) do
         new_model =HTKHMMComposition.load(@name)
-        new_model.vfloors = VFloors.load("vFloors")
       end
 
       new_model

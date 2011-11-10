@@ -20,15 +20,13 @@ module Htk
 
     def initialize_states
       @states = Array.new
-
       @states.push HTKHMMState.start_state(@feature_space_dimension,@num_states)
-
       1.upto(@num_states-2) do |pos|
-        tmp = HTKHMMState.new(pos,@feature_space_dimension){|state| state.self_prob = @self_prob;state.next_prob=@next_prob}
-        tmp.initialize_transitions(@num_states,:normal)
-        @states.push tmp
+        @states.push HTKHMMState.normal_state(@feature_space_dimension,pos,@num_states) do |state|
+          endstate.self_prob = @self_prob
+          state.next_prob=@next_prob
+        end
       end
-
       @states.push HTKHMMState.end_state(@feature_space_dimension,@num_states)
     end
 
@@ -88,6 +86,7 @@ module Htk
       model = nil
       num_states,num_values  = -1,-1,-1
       current_state = -1
+      current_mixture = -1
       file.each_line do |line|
         case status
           when :init
@@ -105,22 +104,30 @@ module Htk
           when :read_states
             if is_state_initial_line? line
               current_state = extract_state_number(line)-1
+              model.states[current_state].clear_mixtures
+              current_mixture = 0
               state_status = :read_state
-            elsif is_state_mean_line? line and state_status == :read_state
+            elsif is_mixture_line? line and state_status == :read_state
+              current_mixture = extract_mixture_id(line)-1
+              mix_probability = extract_mixture_probability line
+              model.states[current_state].add_basic_mixture(mix_probability)
+              state_status = :read_mixture
+            elsif is_state_mean_line? line and (state_status == :read_state or state_status == :read_mixture)
+              model.states[current_state].add_basic_mixture if state_status == :read_state
               num_values = extract_state_mean line
               state_status = :mean_header
             elsif state_status == :mean_header
-              model.states[current_state].mean = extract_values(line,num_values)
+              model.states[current_state][current_mixture].mean = extract_values(line,num_values)
               state_status = :read_mean
             elsif is_state_variance_line? line and state_status == :read_mean
               num_values = extract_state_variance line
               state_status = :variance_header
             elsif state_status == :variance_header
-              model.states[current_state].variance = extract_values(line,num_values)
+              model.states[current_state][current_mixture].variance = extract_values(line,num_values)
               state_status = :read_variance
             elsif is_state_gconst_line? line  and state_status == :read_variance
-              model.states[current_state].gconst= extract_gconst line
-              state_status = :init
+              model.states[current_state][current_mixture].gconst= extract_gconst line
+              state_status = :read_state
             elsif is_transition_initial_line? line
               status = :read_transitions
               current_state = 0
@@ -167,6 +174,18 @@ module Htk
 
     def HTKHMMModel.extract_state_number(line)
       line.split[1].to_i
+    end
+
+    def HTKHMMModel.is_mixture_line?(line)
+      line =~ /<MIXTURE>/
+    end
+
+    def HTKHMMModel.extract_mixture_id(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMModel.extract_mixture_probability(line)
+      line.split[2].to_f
     end
 
 
