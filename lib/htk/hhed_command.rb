@@ -2,6 +2,7 @@ module Htk
   class HHEdCommand
     NAME = "HHEd"
     attr_reader :parameters
+    attr_accessor :edit_chain, :list
     def initialize(&proc)
       initialize_valid_parameters
       yield(self) unless proc.nil?
@@ -14,7 +15,7 @@ module Htk
       @parameters.add_valid_parameter(:A,:binary)
       @parameters.add_valid_parameter(:D,:binary)
       @parameters.add_valid_parameter(:V,:binary)
-
+      @parameters.add_valid_parameter(:T,:single)
       @parameters.add_valid_parameter(:d,:single)
       @parameters.add_valid_parameter(:o,:single)
       @parameters.add_valid_parameter(:w,:single)
@@ -28,7 +29,11 @@ module Htk
 
     def run(config_atros=nil)
       if config_atros.nil?
-        system to_s
+        @list.do_with_file do
+          @edit_chain.do_with_file do
+            system to_s
+          end
+        end
       else
         run_with_config(config_atros)
       end
@@ -37,12 +42,16 @@ module Htk
     def run_with_config(config_atros)
       @parameters[:C]=config_atros.name
       config_atros.do_with_file do
-        system to_s
+        @list.do_with_file do
+          @edit_chain.do_with_file do
+            system to_s
+          end
+        end
       end
     end
 
     def to_s
-      "#{NAME}#{@parameters.to_s}"
+      "#{NAME}#{@parameters.to_s} #{@edit_chain.name} #{@list.name}"
     end
 
   end

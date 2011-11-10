@@ -5,26 +5,31 @@ require File.expand_path(
 
 # Put your code here
 
-hmm = Htk::HTKHMMModel.new("paco",4,8)
-composition = Htk::HTKHMMComposition.new("proto",8)
+fvar = 0.0001
+vvar = 0.0
+directory = "/Users/vbosch/Documents/UPV/Thesis/htk/data/tmp"
+training_list_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/train.lst"
+morpheme_list_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/ListHMMs.htk"
 
-composition.vfloors= Htk::VFloors.new("varFloor1",1,[2.581119e-11])
-composition.add_hmm(hmm)
-composition.write
 
+hmm = Htk::HTKHMMModel.new("proto",4,2)
+prototype = Htk::HTKHMMComposition.new("proto",2)
+prototype.add_hmm(hmm)
 
 config_file = Htk::ConfigATROS.new
 config_file.SOURCEFORMAT="ATROS"
 config_file.NUMCEPS=8
 config_file.TARGETKIND="MFCC"
 
-config_file.write
+initial_estimate_proto = prototype.reestimate_from_training_data(fvar,vvar,training_list_file,directory,config_file)
 
+morpheme_list=Htk::MorphemeList.load(morpheme_list_file)
 
-composition = Htk::HTKHMMComposition.load("proto")
+macro_comp = Htk::HTKHMMComposition.compose_from_morpheme_list("Macros_hmm",morpheme_list,initial_estimate_proto)
 
-composition.name = "arturo"
+gaussians = 2
 
-composition.write
+edit_chain=Htk::EditChain.new("edit_chain","MU #{gaussians} {*.state[2-3].mix}")
 
+edited_macro = macro_comp.edit_hmm(edit_chain,directory,morpheme_list)
 

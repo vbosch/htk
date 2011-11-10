@@ -1,4 +1,5 @@
 module Htk
+  require 'ap'
   class HTKHMMModel
 
     SELF_TRANSITION_PROBABILITY=6.000e-01
@@ -103,7 +104,7 @@ module Htk
             end
           when :read_states
             if is_state_initial_line? line
-              current_state = extract_state_number line
+              current_state = extract_state_number(line)-1
               state_status = :read_state
             elsif is_state_mean_line? line and state_status == :read_state
               num_values = extract_state_mean line
@@ -115,7 +116,7 @@ module Htk
               num_values = extract_state_variance line
               state_status = :variance_header
             elsif state_status == :variance_header
-              model.states[current_state].mean = extract_values(line,num_values)
+              model.states[current_state].variance = extract_values(line,num_values)
               state_status = :read_variance
             elsif is_state_gconst_line? line  and state_status == :read_variance
               model.states[current_state].gconst= extract_gconst line

@@ -17,7 +17,7 @@ module Htk
       if @valid_parameters.include?(param_name)
         @parameter_values[param_name]=value
       else
-        raise "Invalid parameter for command given"
+        raise "Invalid parameter #{param_name} for command given"
       end
 
     end

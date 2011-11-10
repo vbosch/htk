@@ -16,6 +16,7 @@ module Htk
       @parameters.add_valid_parameter(:A,:binary)
       @parameters.add_valid_parameter(:D,:binary)
       @parameters.add_valid_parameter(:V,:binary)
+      @parameters.add_valid_parameter(:T,:single)
       @parameters.add_valid_parameter(:f,:single)
       @parameters.add_valid_parameter(:l,:single)
       @parameters.add_valid_parameter(:m,:binary)

@@ -2,7 +2,8 @@ module Htk
   require 'fileutils'
   class HTKHMMComposition
 
-    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors
+    attr_reader :hmms
+    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors, :vec_size
 
     def initialize(ex_name,ex_vec_size=-1,ex_stream_info ="",ex_vec_finalizer = "<MFCC>" )
       @name = ex_name
@@ -59,6 +60,7 @@ module Htk
           composition = HTKHMMComposition.new(file_name,vec_size,stream_info,vec_finalizer) if composition.nil?
           composition.vfloors = VFloors.load_from_file_descriptor(file,VFloors.extract_vfloor_name(line))
         elsif HTKHMMModel.is_name_line? line
+          composition = HTKHMMComposition.new(file_name,vec_size,stream_info,vec_finalizer) if composition.nil?
           composition.add_hmm(HTKHMMModel.read(file,HTKHMMModel.extract_name(line),vec_size))
         end
       end
@@ -87,36 +89,76 @@ module Htk
       line.split(" ",2)[1]
     end
 
-    def HTKHMMComposition.compose_from_morpheme_list(morpheme_list,prototype)
-
-    end
-
-    def reestimate_from_training_data(fVar,vVar,training_list,directory,config_file)
+    def reestimate_from_training_data(fvar,vvar,training_list,directory,config_file=nil)
       command = HCompVCommand.new do |command|
         command.parameters[:A]=true
         command.parameters[:T]=1
         command.parameters[:m]=true
         command.parameters[:m]=true
-        command.parameters[:f]=fVar
-        command.parameters[:v]=vVar
+        command.parameters[:f]=fvar
+        command.parameters[:v]=vvar
         command.parameters[:S]=training_list
-        #command.parameters[:M]=directory
+        command.parameters[:M]=directory
         command.prototype = @name
       end
 
+      FileUtils.cd(File.dirname(training_list)) do
+        write
+        command.run(config_file)
+      end
+
+      new_model = nil
+      FileUtils.cd(directory) do
+        new_model =HTKHMMComposition.load(@name)
+        new_model.vfloors = VFloors.load("vFloors")
+      end
+
+      new_model
+    end
+
+    def HTKHMMComposition.compose_from_morpheme_list(ex_name,morpheme_list,prototype)
+
+      new_composition= HTKHMMComposition.new(ex_name,prototype.vec_size,prototype.stream_info,prototype.vec_finalizer)
+
+      mean = prototype.hmms.first[1].states[1].mean
+      variance = prototype.hmms.first[1].states[1].variance
+      gconst = prototype.hmms.first[1].states[1].gconst
+
+      morpheme_list.each do |morpheme|
+        hmm = Htk::HTKHMMModel.new(morpheme,prototype.hmms.first[1].num_states,prototype.vec_size)
+        hmm.set_state_distributions(mean,variance,gconst)
+        new_composition.add_hmm(hmm)
+      end
+
+      new_composition
+
+    end
+
+    def edit_hmm(edit_chain,directory,morpheme_list,config_file=nil)
+     command = HHEdCommand.new do |command|
+        command.parameters[:A]=true
+        command.parameters[:H]=[@name]
+        command.parameters[:M]=directory
+        command.edit_chain = edit_chain
+        command.list = morpheme_list
+      end
 
       FileUtils.cd(directory) do
         write
         command.run(config_file)
-        new_model =HTKHMMComposition.load(@name)
       end
 
-      return new_model
+      new_model = nil
+      FileUtils.cd(directory) do
+        new_model =HTKHMMComposition.load(@name)
+        new_model.vfloors = VFloors.load("vFloors")
+      end
+
+      new_model
+
     end
 
-    def duplicate_gaussians
 
-    end
 
     def train(iterations)
 
