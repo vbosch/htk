@@ -8,13 +8,13 @@ module Htk
     end
 
     def write
-      File.open(@name,"w") do |file|
+      File.open(File.basename(@name),"w") do |file|
         file.puts @chain
       end
     end
 
     def clean_up
-      FileUtils.rm @name
+      FileUtils.rm File.basename(@name)
     end
 
     def do_with_file(&proc)

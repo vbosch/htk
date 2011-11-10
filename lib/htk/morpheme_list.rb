@@ -16,13 +16,13 @@ module Htk
     end
 
     def write(file_name=@name)
-      File.open(file_name,"w") do |file|
+      File.open(File.basename(file_name),"w") do |file|
         @morphemes.each{|morpheme| file.puts morpheme}
       end
     end
 
     def clean_up
-      FileUtils.rm @name
+      FileUtils.rm File.basename(@name)
     end
 
     def do_with_file(&proc)
