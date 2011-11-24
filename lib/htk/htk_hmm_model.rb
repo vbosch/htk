@@ -15,20 +15,64 @@ module Htk
       @self_prob = SELF_TRANSITION_PROBABILITY
       @next_prob = NEXT_TRANSITION_PROBABILITY
       yield(self) unless proc.nil?
-      initialize_states
+      @states = Array.new
     end
 
-    def initialize_states
-      @states = Array.new
+    def HTKHMMModel.strictly_linear_hmm(ex_name,ex_num_states,ex_feature_space_dimension,&proc)
+      model = HTKHMMModel.new(ex_name,ex_num_states,ex_feature_space_dimension,&proc)
+      model.strictly_linear_state_initialization
+      return model
+    end
+
+    def strictly_linear_state_initialization
       @states.push HTKHMMState.start_state(@feature_space_dimension,@num_states)
       1.upto(@num_states-2) do |pos|
-        @states.push HTKHMMState.normal_state(@feature_space_dimension,pos,@num_states) do |state|
-          endstate.self_prob = @self_prob
+        tmp=HTKHMMState.normal_state(@feature_space_dimension,pos,@num_states) do |state|
+          state.self_prob = @self_prob
           state.next_prob=@next_prob
         end
+        @states.push tmp
       end
       @states.push HTKHMMState.end_state(@feature_space_dimension,@num_states)
     end
+
+    def  HTKHMMModel.ranged_linear_hmm(ex_name,range,ex_feature_space_dimension,&proc)
+      model = HTKHMMModel.new(ex_name,range.last+1,ex_feature_space_dimension,&proc)
+      model.ranged_linear_state_initialization(range)
+      return model
+    end
+
+    def ranged_linear_state_initialization(range)
+       @states.push HTKHMMState.start_state(@feature_space_dimension,@num_states)
+
+       1.upto(@num_states-2) do |pos|
+        tmp = HTKHMMState.normal_state(@feature_space_dimension,pos,@num_states) do |state|
+
+          if range.include? pos
+            if pos != @num_states - 2
+              state.next_prob=0.5
+              state.self_prob = 0.0
+            else
+              state.next_prob=0.4
+              state.self_prob = 0.6
+            end
+          else
+            state.self_prob = 0.0
+            state.next_prob=1.0
+          end
+        end
+        @states.push tmp
+      end
+
+      @states.push HTKHMMState.end_state(@feature_space_dimension,@num_states)
+
+      range.each do |pos|
+        @states[pos].transitions[-1]=0.5 if pos < @num_states-2
+      end
+
+    end
+
+
 
 
     def write_as_composition(file)
@@ -96,7 +140,7 @@ module Htk
           when :num_states
             if is_num_states_line? line
               num_states = extract_num_states line
-              model = HTKHMMModel.new(name,num_states,vec_size)
+              model = HTKHMMModel.strictly_linear_hmm(name,num_states,vec_size)
               status = :read_states
             else
               raise "After a <BEGINHMM> tag line <NUMSTATES> is expected"

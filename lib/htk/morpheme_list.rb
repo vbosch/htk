@@ -15,6 +15,12 @@ module Htk
       @morphemes.each &proc
     end
 
+    def restore
+      File.open(@name,"w") do |file|
+        @morphemes.each{|morpheme| file.puts morpheme}
+      end
+    end
+
     def write(file_name=@name)
       File.open(File.basename(file_name),"w") do |file|
         @morphemes.each{|morpheme| file.puts morpheme}

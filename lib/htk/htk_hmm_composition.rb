@@ -116,7 +116,7 @@ module Htk
       new_model
     end
 
-    def HTKHMMComposition.compose_from_morpheme_list(ex_name,morpheme_list,prototype)
+    def HTKHMMComposition.compose_from_morpheme_list(ex_name,morpheme_list,prototype,states)
 
       new_composition= HTKHMMComposition.new(ex_name,prototype.vec_size,prototype.stream_info,prototype.vec_finalizer)
 
@@ -125,13 +125,12 @@ module Htk
       gconst = prototype.hmms.first[1].states[1][0].gconst
 
       morpheme_list.each do |morpheme|
-        hmm = Htk::HTKHMMModel.new(morpheme,prototype.hmms.first[1].num_states,prototype.vec_size)
+        hmm = Htk::HTKHMMModel.strictly_linear_hmm(morpheme,states[morpheme],prototype.vec_size)
         hmm.set_state_distributions(mean,variance,gconst)
         new_composition.add_hmm(hmm)
       end
 
-      new_composition
-
+      return new_composition
     end
 
     def edit_hmm(edit_chain,directory,morpheme_list,config_file=nil)
@@ -141,26 +140,41 @@ module Htk
         command.parameters[:M]=directory
         command.edit_chain = edit_chain
         command.list = morpheme_list
-      end
-
+     end
+      new_model = nil
       FileUtils.cd(directory) do
         write
         command.run(config_file)
+        new_model =HTKHMMComposition.load(@name)
+      end
+      new_model
+    end
+
+    def train(iterations,config_file,directory,morpheme_list,training_list_file,training_sample_file)
+      command = HERestCommand.new do |command|
+        command.parameters[:A]=true
+        command.parameters[:T]=1
+        command.parameters[:m]=1
+        command.parameters[:u]="tmvw"
+        command.parameters[:S]= training_list_file
+        command.parameters[:I]=[training_sample_file]
+        command.parameters[:H]=[File.join(directory,@name)]
+        command.parameters[:M]=directory
+        command.list = morpheme_list
       end
 
       new_model = nil
       FileUtils.cd(directory) do
+        write
+        FileUtils.cd(File.dirname(training_list_file)) do
+          iterations.times do
+            command.run(config_file)
+          end
+        end
         new_model =HTKHMMComposition.load(@name)
       end
-
+      morpheme_list.restore
       new_model
-
-    end
-
-
-
-    def train(iterations)
-
     end
 
   end
