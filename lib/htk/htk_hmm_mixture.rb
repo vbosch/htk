@@ -10,7 +10,6 @@ module Htk
       @variance = Array.new(@feature_space_dimension,1.0)
       @gconst = nil
     end
-
     def full_to_s
       header_to_s + mean_to_s + variance_to_s + gconst_to_s
     end
@@ -35,6 +34,81 @@ module Htk
       return "<GCONST> #{@gconst} \n" unless @gconst.nil?
       ""
     end
+
+    def HTKHMMMixture.read(lines,ex_feature_space_dimension)
+      state_status = :init
+      num_values = -1
+      mixture = nil
+      lines.each do |line|
+        if is_mixture_line? line
+          current_mixture = extract_mixture_id(line)
+          mix_probability = extract_mixture_probability line
+          mixture = HTKHMMMixture.new(current_mixture,mix_probability,ex_feature_space_dimension)
+          state_status = :read_mixture
+        elsif is_state_mean_line? line and (state_status == :init or state_status == :read_mixture)
+          num_values = extract_state_mean line
+          state_status = :mean_header
+        elsif state_status == :mean_header
+          mixture = HTKHMMMixture.new(0,1.0,ex_feature_space_dimension) if mixture.nil?
+          mixture.mean = extract_values(line,num_values)
+          state_status = :read_mean
+        elsif is_state_variance_line? line and state_status == :read_mean
+          num_values = extract_state_variance line
+          state_status = :variance_header
+        elsif state_status == :variance_header
+          mixture.variance = extract_values(line,num_values)
+          state_status = :read_variance
+        elsif is_state_gconst_line? line  and state_status == :read_variance
+          mixture.gconst= extract_gconst line
+        end
+      end
+
+      return mixture
+    end
+
+    def HTKHMMMixture.is_mixture_line?(line)
+      line =~ /<MIXTURE>/
+    end
+
+    def HTKHMMMixture.extract_mixture_id(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMMixture.extract_mixture_probability(line)
+      line.split[2].to_f
+    end
+
+
+    def HTKHMMMixture.is_state_variance_line?(line)
+      line =~ /<VARIANCE>/
+    end
+
+    def HTKHMMMixture.extract_state_variance(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMMixture.is_state_mean_line?(line)
+      line =~ /<MEAN>/
+    end
+
+    def HTKHMMMixture.extract_state_mean(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMMixture.extract_values(line,num_values)
+      values = line.split
+      raise "incorrect number of values found" if values.size != num_values
+      values.map{|value| value.to_f}
+    end
+
+    def HTKHMMMixture.is_state_gconst_line?(line)
+      line =~ /<GCONST>/
+    end
+
+    def HTKHMMMixture.extract_gconst(line)
+      line.split[1].to_f
+    end
+
 
   end
 end

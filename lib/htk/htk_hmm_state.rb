@@ -11,31 +11,31 @@ module Htk
       @position = position
 
       @feature_space_dimension = feature_space_dim
-      @mixtures = []
-      @gconst = nil
+      @mixture_set = HTKHMMMixtureSet.new(@feature_space_dimension)
+      @mixture_type = :personal
       @self_prob = SELF_TRANSITION_PROBABILITY
       @next_prob = NEXT_TRANSITION_PROBABILITY
       yield(self) unless proc.nil?
     end
 
-    def clear_mixtures
-      @mixtures.clear
+    def clear_emission_probability
+      @mixture_set.clear
     end
 
     def [](val)
-      @mixtures[val]
+      @mixture_set[val]
+    end
+
+    def set_mixture_set(set)
+      @mixture_set = set
     end
 
     def add_basic_mixture(mix_probability=1.0)
-      @mixtures.push HTKHMMMixture.new(@mixtures.size+1,mix_probability,@feature_space_dimension)
+      @mixture_set.add_basic_mixture(mix_probability)
     end
 
     def add_detailed_mixture(mix_probability,mean,variance,gconst=nil)
-      tmp= HTKHMMMixture.new(@mixtures.size+1,mix_probability,@feature_space_dimension)
-      tmp.mean = mean
-      tmp.variance = variance
-      tmp.gconst = gconst
-      @mixtures.push tmp
+      @mixture_set.add_detailed_mixture(mix_probability,mean,variance,gconst)
     end
 
     def initialize_transitions(num_states,state_type)
@@ -50,11 +50,7 @@ module Htk
     end
 
     def set_probability_distribution(ex_mean,ex_variance,ex_gconst)
-      @mixtures.each do |mix|
-        mix.mean = ex_mean
-        mix.variance = ex_variance
-        mix.gconst = ex_gconst
-      end
+      @mixture_set.set_probability_distribution(ex_mean,ex_variance,ex_gconst)
     end
 
     def HTKHMMState.start_state(feature_space_dimension,num_states)
@@ -88,21 +84,38 @@ module Htk
     end
 
     def distribution_to_s
-      "<STATE> #{@position+1}\n" + mixture_number_to_s + mixtures_to_s
+      "<STATE> #{@position+1}\n" + emission_probability_to_s
     end
 
-    def mixture_number_to_s
-      return "" if @mixtures.size == 1
-      "<NUMMIXES> #{@mixtures.size}\n"
-    end
-
-    def mixtures_to_s
-      return @mixtures[0].simple_to_s if @mixtures.size == 1
-      @mixtures.inject(""){|res,mix| res+=mix.full_to_s}
+    def emission_probability_to_s
+      return @mixture_set.to_s
     end
 
     def transition_to_s
       @transitions.inject(""){|res,val| res+= "#{sprintf("%e",val)} "}
+    end
+
+    def HTKHMMState.read(lines,feature_space_dim)
+      state_number = HTKHMMState.extract_state_number(lines)
+      state = HTKHMMState.new(state_number,feature_space_dim)
+      lines.shift
+      set = HTKHMMMixtureSet.read(lines,feature_space_dim)
+      state.set_mixture_set(set)
+      return state
+    end
+
+    def HTKHMMState.extract_state_number(lines)
+      lines.each do |line|
+        return extract_state_number_value(line)-1 if is_state_initial_line? line
+      end
+    end
+
+    def HTKHMMState.is_state_initial_line?(line)
+      line =~ /<STATE>/
+    end
+
+    def HTKHMMState.extract_state_number_value(line)
+      line.split[1].to_i
     end
 
   end

@@ -62,7 +62,7 @@ module Htk
           end
         end
         @states.push tmp
-      end
+       end
 
       @states.push HTKHMMState.end_state(@feature_space_dimension,@num_states)
 
@@ -72,8 +72,11 @@ module Htk
 
     end
 
-
-
+    def  HTKHMMModel.state_specified_hmm(ex_name,ex_feature_space_dimension,states,&proc)
+      model = HTKHMMModel.new(ex_name,states.size,ex_feature_space_dimension,&proc)
+      model.states = states
+      return model
+    end
 
     def write_as_composition(file)
       write_header(file)
@@ -124,69 +127,79 @@ module Htk
 
 
 
-    def HTKHMMModel.read(file,name,vec_size)
-      status = :init
-      state_status = :init
-      model = nil
-      num_states,num_values  = -1,-1,-1
-      current_state = -1
-      current_mixture = -1
+    def HTKHMMModel.read(lines,name,feature_space_dim)
+      #lines = HTKHMMModel.read_model_lines(file)
+      num_states = HTKHMMModel.extract_num_states(lines)
+      states = HTKHMMModel.extract_states(lines,num_states,feature_space_dim)
+      transitions =  HTKHMMModel.extract_transitions(lines)
+
+      num_states.times do |state_index|
+        states[state_index].transitions = transitions[state_index]
+      end
+
+      return HTKHMMModel.state_specified_hmm(name,feature_space_dim,states)
+    end
+
+    def HTKHMMModel.read_model_lines(file)
+      line_array = []
       file.each_line do |line|
-        case status
-          when :init
-            if is_start_hmm_line? line
-              status = :num_states
-            end
-          when :num_states
-            if is_num_states_line? line
-              num_states = extract_num_states line
-              model = HTKHMMModel.strictly_linear_hmm(name,num_states,vec_size)
-              status = :read_states
-            else
-              raise "After a <BEGINHMM> tag line <NUMSTATES> is expected"
-            end
-          when :read_states
-            if is_state_initial_line? line
-              current_state = extract_state_number(line)-1
-              model.states[current_state].clear_mixtures
-              current_mixture = 0
-              state_status = :read_state
-            elsif is_mixture_line? line and state_status == :read_state
-              current_mixture = extract_mixture_id(line)-1
-              mix_probability = extract_mixture_probability line
-              model.states[current_state].add_basic_mixture(mix_probability)
-              state_status = :read_mixture
-            elsif is_state_mean_line? line and (state_status == :read_state or state_status == :read_mixture)
-              model.states[current_state].add_basic_mixture if state_status == :read_state
-              num_values = extract_state_mean line
-              state_status = :mean_header
-            elsif state_status == :mean_header
-              model.states[current_state][current_mixture].mean = extract_values(line,num_values)
-              state_status = :read_mean
-            elsif is_state_variance_line? line and state_status == :read_mean
-              num_values = extract_state_variance line
-              state_status = :variance_header
-            elsif state_status == :variance_header
-              model.states[current_state][current_mixture].variance = extract_values(line,num_values)
-              state_status = :read_variance
-            elsif is_state_gconst_line? line  and state_status == :read_variance
-              model.states[current_state][current_mixture].gconst= extract_gconst line
-              state_status = :read_state
-            elsif is_transition_initial_line? line
-              status = :read_transitions
-              current_state = 0
-            end
-          when :read_transitions
-            if is_end_hmm_line? line
-              status = :end
-              return model
-            elsif
-              model.states[current_state].transitions= extract_values(line,num_states)
-              current_state +=1
-            end
+        line_array.push line
+        break if is_end_hmm_line? line
+      end
+      return line_array
+    end
+
+    def HTKHMMModel.extract_num_states(lines)
+      lines.each do |line|
+        return HTKHMMModel.extract_num_states_value(line) if HTKHMMModel.is_num_states_line?(line)
+      end
+      return nil
+    end
+
+    def HTKHMMModel.extract_states(lines,num_states,feature_space_dim)
+      old = -1
+      current = -1
+      states = []
+      states.push HTKHMMState.start_state(feature_space_dim,num_states)
+      lines.each_with_index do |line,index|
+        if HTKHMMState.is_state_initial_line?(line) or HTKHMMModel.is_transition_initial_line?(line)
+
+          old = current
+          current = index
+        end
+        if old != -1 and current !=-1
+          states.push HTKHMMState.read(lines[old...current],feature_space_dim)
+          old = -1
         end
       end
+      states.push HTKHMMState.end_state(feature_space_dim,num_states)
+      raise "Less states found than indicated in the model" if states.size != num_states
+      return states
     end
+
+
+
+
+    def HTKHMMModel.extract_transitions(lines)
+      transitions = []
+      transition_index = lines.size+1
+      num_values = -1
+      lines.each_with_index do |line,index|
+        if HTKHMMModel.is_transition_initial_line?(line)
+          transition_index = index
+          num_values=HTKHMMModel.extract_transition_size(line)
+        end
+
+        if index > transition_index and not HTKHMMModel.is_end_hmm_line?(line)
+          transitions.push HTKHMMMixture.extract_values(line,num_values)
+        end
+
+      end
+      raise "Different number of transitions found than specified" if num_values != transitions.size
+      return transitions
+    end
+
+
 
     def HTKHMMModel.is_name_line?(line)
       line =~ /~h/
@@ -204,67 +217,20 @@ module Htk
       line =~ /<NUMSTATES>/
     end
 
-    def HTKHMMModel.extract_num_states(line)
+    def HTKHMMModel.extract_num_states_value(line)
+      line.split[1].to_i
+    end
+
+    def HTKHMMModel.is_transition_initial_line?(line)
+      line =~ /<TRANSP>/
+    end
+
+    def HTKHMMModel.extract_transition_size(line)
       line.split[1].to_i
     end
 
     def HTKHMMModel.is_end_hmm_line?(line)
       line =~ /<ENDHMM>/
-    end
-
-    def HTKHMMModel.is_state_initial_line?(line)
-      line =~ /<STATE>/
-    end
-
-    def HTKHMMModel.extract_state_number(line)
-      line.split[1].to_i
-    end
-
-    def HTKHMMModel.is_mixture_line?(line)
-      line =~ /<MIXTURE>/
-    end
-
-    def HTKHMMModel.extract_mixture_id(line)
-      line.split[1].to_i
-    end
-
-    def HTKHMMModel.extract_mixture_probability(line)
-      line.split[2].to_f
-    end
-
-
-    def HTKHMMModel.is_state_variance_line?(line)
-      line =~ /<VARIANCE>/
-    end
-
-    def HTKHMMModel.extract_state_variance(line)
-      line.split[1].to_i
-    end
-
-    def HTKHMMModel.is_state_mean_line?(line)
-      line =~ /<MEAN>/
-    end
-
-    def HTKHMMModel.extract_state_mean(line)
-      line.split[1].to_i
-    end
-
-    def HTKHMMModel.extract_values(line,num_values)
-      values = line.split
-      raise "incorrect number of values found" if values.size != num_values
-      values.map{|value| value.to_f}
-    end
-
-    def HTKHMMModel.is_state_gconst_line?(line)
-      line =~ /<GCONST>/
-    end
-
-    def HTKHMMModel.extract_gconst(line)
-      line.split[1].to_f
-    end
-
-    def HTKHMMModel.is_transition_initial_line?(line)
-      line =~ /<TRANSP>/
     end
 
   end

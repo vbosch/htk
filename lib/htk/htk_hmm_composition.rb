@@ -3,7 +3,7 @@ module Htk
   class HTKHMMComposition
 
     attr_reader :hmms
-    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors, :vec_size
+    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors, :vec_size, :mixtures
 
     def initialize(ex_name,ex_vec_size=-1,ex_stream_info ="",ex_vec_finalizer = "<MFCC>" )
       @name = ex_name
@@ -11,6 +11,7 @@ module Htk
       @vec_finalizer = ex_vec_finalizer
       @vec_size = ex_vec_size
       @hmms = Hash.new
+      @mixtures = Hash.new
       @vfloors = nil
     end
 
@@ -24,6 +25,7 @@ module Htk
       File.open(@name,"w") do |file|
         write_header(file)
         write_vfloors(file)
+        write_mixtures(file)
         write_hmms(file)
       end
     end
@@ -38,6 +40,10 @@ module Htk
       @vfloors.write_to_descriptor(file) unless @vfloors.nil?
     end
 
+    def write_mixtures(file)
+      @mixtures.each_value{|mixture| file.puts mixture.to_s}  unless @mixtures.nil? or @mixtures.size == 0
+    end
+
     def write_hmms(file)
       @hmms.each_value{|hmm| hmm.write_as_composition(file)}
     end
@@ -45,26 +51,80 @@ module Htk
     def HTKHMMComposition.load(file_name)
 
       raise "specified file does not exist" unless File.exists? file_name
-
-      composition = nil
-      vec_size  = -1
-      vec_finalizer,stream_info = ""
       file = File.open(file_name,"r")
+      lines = HTKHMMComposition.read_lines(file)
+      stream_info = HTKHMMComposition.extract_stream_info(lines)
+      vec_info = HTKHMMComposition.extract_vec_info(lines)
+      if not stream_info.nil? and not vec_info.nil?
+        composition = HTKHMMComposition.new(file_name,vec_info[:size],stream_info,vec_info[:finalizer])
+        composition.vfloors =  HTKHMMComposition.extract_vfloors(lines)
+        composition.mixtures = HTKHMMComposition.extract_composition_mixtures(lines)
+        HTKHMMComposition.extract_models(lines,vec_info[:size]).each{|index,hmm|composition.add_hmm(hmm)}
+      else
+        raise "Composition did not contain stream and/or vec information"
+      end
+
+      return composition
+    end
+
+    def HTKHMMComposition.read_lines(file)
+      line_array = []
       file.each_line do |line|
-        if is_vecsize_line? line
-          vec_size=extract_vecsize line
-          vec_finalizer=extract_vecfinalizer line
-        elsif is_streaminfo_line? line
-          stream_info=extract_streaminfo line
-        elsif VFloors.is_vfloor_name_line? line
-          composition = HTKHMMComposition.new(file_name,vec_size,stream_info,vec_finalizer) if composition.nil?
-          composition.vfloors = VFloors.load_from_file_descriptor(file,VFloors.extract_vfloor_name(line))
-        elsif HTKHMMModel.is_name_line? line
-          composition = HTKHMMComposition.new(file_name,vec_size,stream_info,vec_finalizer) if composition.nil?
-          composition.add_hmm(HTKHMMModel.read(file,HTKHMMModel.extract_name(line),vec_size))
+        line_array.push line
+      end
+      return line_array
+    end
+
+    def HTKHMMComposition.extract_stream_info(lines)
+      lines.each do |line|
+        return HTKHMMComposition.extract_stream_info_value(line) if HTKHMMComposition.is_streaminfo_line?(line)
+      end
+      return ""
+    end
+
+    def HTKHMMComposition.extract_vec_info(lines)
+      info={:size => -1 , :finalizer => ""}
+      lines.each do |line|
+        if HTKHMMComposition.is_vecsize_line?(line)
+          info[:size] = HTKHMMComposition.extract_vecsize(line)
+          info[:finalizer] = HTKHMMComposition.extract_vecfinalizer(line)
+          return info
         end
       end
-      composition
+      return nil
+    end
+
+    def HTKHMMComposition.extract_vfloors(lines)
+
+      lines.each_with_index do |line,index|
+          if VFloors.is_vfloor_name_line? line
+            VFloors.load_from_lines(lines[index..index+2],VFloors.extract_vfloor_name(line))
+          end
+      end
+      return nil
+    end
+
+    def HTKHMMComposition.extract_composition_mixtures(lines)
+
+    end
+
+    def HTKHMMComposition.extract_models(lines,feature_space_dim)
+      old,current = -1,-1
+      old_name,current_name="",""
+      models = Hash.new
+      lines.each_with_index do |line,index|
+        if HTKHMMModel.is_name_line? line or index == lines.size-1
+          old = current
+          current = index
+          old_name=current_name
+          current_name = HTKHMMModel.extract_name(line) unless index == lines.size-1
+        end
+        if old != -1 and current !=-1
+          models[old_name]=HTKHMMModel.read(lines[old...current],old_name,feature_space_dim)
+          old = -1
+        end
+      end
+      return models
     end
 
     def HTKHMMComposition.is_vecsize_line?(line)
@@ -85,7 +145,7 @@ module Htk
       line =~ /<STREAMINFO>/
     end
 
-    def HTKHMMComposition.extract_streaminfo(line)
+    def HTKHMMComposition.extract_stream_info_value(line)
       line.split(" ",2)[1]
     end
 
