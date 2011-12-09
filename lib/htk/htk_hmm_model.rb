@@ -1,5 +1,6 @@
 module Htk
   require 'ap'
+  require 'ruby-debug'
   class HTKHMMModel
 
     SELF_TRANSITION_PROBABILITY=6.000e-01
@@ -106,6 +107,14 @@ module Htk
         file.puts state.distribution_to_s
       end
 
+    end
+
+    def apply_symbolic_mixture(mixture_name,state_range)
+      raise "Range surpasses states in model " if state_range.last > @states.size - 1
+      symbolic_mix = HTKHMMMixtureSet.new(@feature_space_dimension,mixture_name)
+      @states[state_range].each do |state|
+        state.set_mixture_set(symbolic_mix)
+      end
     end
 
     def set_state_distributions(mean,variance,gconst)

@@ -1,9 +1,9 @@
 #!/usr/bin/env ruby
 
+require 'ap'
 require File.expand_path(
     File.join(File.dirname(__FILE__), %w[.. lib htk]))
 
-# Put your code here
 
 fvar = 0.0001
 vvar = 0.0
@@ -11,14 +11,29 @@ directory = "/Users/vbosch/Documents/UPV/Thesis/htk/data/tmp"
 training_list_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/train.lst"
 morpheme_list_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/ListHMMs.htk"
 training_sample_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/train.mlf"
+training_detailed_sample_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/trainIntv.mlf"
 iterations = 4
+gaussians_iteration = 5
 
-=begin
-hmm = Htk::HTKHMMModel.ranged_linear_hmm("proto",(3..6),2)
-prototype = Htk::HTKHMMComposition.new("proto",2)
-prototype.add_hmm(hmm)
-prototype.write
-=end
+
+filter_list=Htk::SampleList.new(training_list_file)
+
+morpheme_samples=Htk::MultiSampleMorphemeStatisticsList.new(training_detailed_sample_file,filter_list)
+
+morpheme_samples.set_line_reader do |line|
+  tmp = line.split
+  {:start => tmp[0].to_i, :end => tmp[1].to_i, :tag => tmp[2]}
+end
+
+morpheme_samples.set_tag_filter do |formatted_line|
+  tmp = false
+  tmp = true if formatted_line[:tag] == "IL"
+  tmp
+end
+
+morpheme_samples.read
+
+statistics = morpheme_samples.morpheme_length_statistics
 
 hmm = Htk::HTKHMMModel.strictly_linear_hmm("proto",4,2)
 prototype = Htk::HTKHMMComposition.new("proto",2)
@@ -35,14 +50,35 @@ morpheme_list=Htk::MorphemeList.load(morpheme_list_file)
 
 states = Hash.new(initial_estimate_proto.hmms.first[1].num_states)
 
-macro_comp = Htk::HTKHMMComposition.compose_from_morpheme_list("Macros_hmm",morpheme_list,initial_estimate_proto,states)
+states["PL"]=(statistics["PL"][:mean]-statistics["PL"][:std_dev]..statistics["PL"][:mean]+statistics["PL"][:std_dev]-1)
+states["NL"]=(statistics["PL"][:mean]-statistics["NL"][:std_dev]..statistics["NL"][:mean]+statistics["NL"][:std_dev]-1)
+states["SL"]=(statistics["PL"][:mean]-statistics["SL"][:std_dev]..statistics["SL"][:mean]+statistics["SL"][:std_dev]-1)
 
-gaussians = 2
+macro_comp = Htk::HTKHMMComposition.compose_from_morpheme_list("Macros_hmm_0",morpheme_list,initial_estimate_proto,states)
 
-edit_chain=Htk::EditChain.new("edit_chain","MU #{gaussians} {*.state[2-3].mix}")
+macro_comp.add_mixture_set_from_prototype("plmix",initial_estimate_proto)
+macro_comp.add_mixture_set_from_prototype("nlmix",initial_estimate_proto)
+macro_comp.add_mixture_set_from_prototype("slmix",initial_estimate_proto)
 
-edited_macro = macro_comp.edit_hmm(edit_chain,directory,morpheme_list)
+macro_comp.apply_mixture_set_to_model("plmix","PL",(0..statistics["PL"][:mean]+statistics["PL"][:std_dev]-1))
+macro_comp.apply_mixture_set_to_model("nlmix","NL",(0..statistics["NL"][:mean]+statistics["NL"][:std_dev]-1))
+macro_comp.apply_mixture_set_to_model("slmix","SL",(0..statistics["SL"][:mean]+statistics["SL"][:std_dev]-1))
 
-trained_model = edited_macro.train(iterations,config_file,directory,morpheme_list,training_list_file,training_sample_file)
+macro_comp.write
 
-trained_model.write
+gaussians = 1
+
+gaussians_iteration.times do
+
+  edit_chain=Htk::EditChain.new("edit_chain","MU #{gaussians} {*.state[2-3].mix}")
+
+  macro_comp = macro_comp.edit_hmm(edit_chain,directory,morpheme_list)
+
+  macro_comp = macro_comp.train(iterations,config_file,directory,morpheme_list,training_list_file,training_sample_file)
+
+  macro_comp.name = "Macros_hmm_#{gaussians}"
+
+  gaussians *= 2
+
+end
+

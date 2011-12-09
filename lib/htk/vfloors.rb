@@ -34,12 +34,12 @@ module Htk
       VFloors.load_from_file_descriptor(File.open(file_name,"r"),"")
     end
 
-    def VFloors.load_from_lines(file,name)
+    def VFloors.load_from_lines(lines,name)
 
       num_variance = -1
       variances = nil
 
-      file.each_line do |line|
+      lines.each do |line|
         if is_vfloor_name_line? line
           name = extract_vfloor_name(line)
         elsif is_num_variances_line? line

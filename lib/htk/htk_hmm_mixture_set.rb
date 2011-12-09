@@ -109,7 +109,7 @@ module Htk
         end
       end
 
-      raise "Less states found than indicated in the model" if mixtures.size != num_mixtures
+      raise "Less mixtures found than indicated in the model" if mixtures.size != num_mixtures
       return mixtures
 
     end
@@ -146,7 +146,7 @@ module Htk
     end
 
     def HTKHMMMixtureSet.is_just_symbolic_link(lines)
-      return true if lines.size == 1 and HTKHMMMixtureSet.is_symbolic_name_line?(line[0])
+      return true if lines.size == 1 and HTKHMMMixtureSet.is_symbolic_name_line?(lines[0])
     end
 
 

@@ -1,5 +1,5 @@
 module Htk
-  class SampleStatistics
+  class SampleLanguageStatistics
     attr_reader :statistics
     def initialize(ex_name)
       @name= ex_name

@@ -1,0 +1,129 @@
+#!/usr/bin/env ruby
+
+
+require File.expand_path(
+    File.join(File.dirname(__FILE__), %w[.. lib htk]))
+
+require 'ap'
+require 'trollop'
+require 'fileutils'
+
+opts = Trollop::options do
+	version "htk_trainer 0.0.1 (c) 2011 Vicente Bosch Campos"
+	banner <<-EOS
+htk_trainer is a command tool to perform advance Hidden Markov Model training with the HTK toolkit.
+Usage:
+	htk_trainer [options]
+	where [options] are:
+EOS
+opt :input_space_dimension, "Size of the input space", :type => :int
+opt :num_states, "Number of default states to consider for each trained hmm", :type => :int, :default => 4
+opt :training_iterations, "Training iterations to perform after each gaussian duplication", :type => :int, :default => 4
+opt :gaussians, "Number of gaussians to consider for each state", :type => :int, :default => 64
+opt :training_list_file, "List in htk format containing the sample names to use for training", :type => :string
+opt :training_sample_file, "File in htk format containing the sample data to use for training", :type => :string
+opt :training_detailed_sample_file, "File in htk format containing the sample data at morpheme level", :type => :string
+opt :morpheme_list_file, "File containing the list of morphemes for which to build an HMM", :type => :string
+opt :fvar, "Limit value for variance floor macros for initial reestimation", :type => :float, :default => 0.0001
+opt :vvar, "Minimum variance", :type => :float, :default => 0.0
+opt :results_directory, "File containing the list of morphemes for which to build an HMM", :type => :string, :default => "./hmm"
+opt :optimize_morphemes, "Morphemes which HMM state length is to be optimized by extracting average and standard deviation of streams in training file", :type => :strings
+
+end
+
+Trollop::die :input_space_dimension, "Input space dimension was not defined" unless opts[:input_space_dimension]
+Trollop::die :input_space_dimension, "Input space dimension must be greater than 0" if opts[:input_space_dimension]<=0
+
+Trollop::die :num_states, "Default number of states must be greater than 0" if opts[:num_states]<=0
+
+Trollop::die :training_list_file, "Training list file was not defined" unless opts[:training_list_file]
+Trollop::die :training_list_file, "Indicated training list file does not exist" unless File.exist?(opts[:training_list_file])
+
+Trollop::die :training_sample_file, "Training sample file was not defined" unless opts[:training_sample_file]
+Trollop::die :training_sample_file, "Indicated training sample file does not exist" unless File.exist?(opts[:training_sample_file])
+
+if opts[:optimize_morphemes]
+
+  Trollop::die :optimize_morphemes, "List of morphemes to optimize must be greater than zero" unless opts[:optimize_morphemes].size > 0
+  Trollop::die :training_detailed_sample_file, "Detailed training sample file must be indicated to optimize state length of HMMs" unless opts[:training_detailed_sample_file]
+  Trollop::die :training_detailed_sample_file, "Indicated training detailed sample file does not exist" unless File.exist?(opts[:training_detailed_sample_file])
+
+end
+
+Trollop::die :morpheme_list_file, "Target morpheme list file was not defined" unless opts[:morpheme_list_file]
+Trollop::die :morpheme_list_file, "Indicated morpheme list file does not exist" unless File.exist?(opts[:morpheme_list_file])
+
+
+def calculate_morpheme_statistics(opts)
+  filter_list=Htk::SampleList.new(opts[:training_list_file])
+  morpheme_samples=Htk::MultiSampleMorphemeStatisticsList.new(opts[:training_detailed_sample_file],filter_list)
+  morpheme_samples.set_line_reader do |line|
+    tmp = line.split
+    {:start => tmp[0].to_i, :end => tmp[1].to_i, :tag => tmp[2]}
+  end
+  morpheme_samples.set_tag_filter do |formatted_line|
+    tmp = false
+    tmp = true if formatted_line[:tag] == "IL"
+    tmp
+  end
+  morpheme_samples.read
+  return morpheme_samples.morpheme_length_statistics
+end
+
+def calculate_states4hmms(opts,statistics)
+  states = Hash.new(opts[:num_states])
+
+  if opts[:optimize_morphemes] and opts[:optimize_morphemes].size>0
+   opts[:optimize_morphemes].each do |morpheme_tag|
+      states[morpheme_tag]=(statistics[morpheme_tag][:mean]-statistics[morpheme_tag][:std_dev]..statistics[morpheme_tag][:mean]+statistics[morpheme_tag][:std_dev]-1)
+   end
+  end
+  return states
+end
+
+def update_composition_with_mixtures(macro_comp,initial_estimate_proto,opts,statistics)
+
+  if opts[:optimize_morphemes] and opts[:optimize_morphemes].size>0
+    opts[:optimize_morphemes].each do |morpheme_tag|
+      macro_comp.add_mixture_set_from_prototype("#{morpheme_tag}mix",initial_estimate_proto)
+      macro_comp.apply_mixture_set_to_model("#{morpheme_tag}mix",morpheme_tag,(0..statistics[morpheme_tag][:mean]+statistics[morpheme_tag][:std_dev]-1))
+
+    end
+  end
+  return macro_comp
+end
+
+ap opts
+
+hmm = Htk::HTKHMMModel.strictly_linear_hmm("proto",opts[:num_states],opts[:input_space_dimension])
+prototype = Htk::HTKHMMComposition.new("proto",opts[:input_space_dimension])
+prototype.add_hmm(hmm)
+
+config_file = Htk::ConfigATROS.new
+config_file.SOURCEFORMAT="ATROS"
+config_file.NUMCEPS=8
+config_file.TARGETKIND="MFCC"
+
+initial_estimate_proto = prototype.reestimate_from_training_data(opts[:fvar],opts[:vvar],opts[:training_list_file],opts[:results_directory],config_file)
+
+statistics = calculate_morpheme_statistics(opts)
+states = calculate_states4hmms(opts,statistics)
+morpheme_list=Htk::MorphemeList.load(opts[:morpheme_list_file])
+macro_comp = Htk::HTKHMMComposition.compose_from_morpheme_list("Macros_hmm",morpheme_list,initial_estimate_proto,states)
+macro_comp = update_composition_with_mixtures(macro_comp,initial_estimate_proto,opts,statistics)
+macro_comp.write
+gaussians = 1
+
+while(gaussians<opts[:gaussians]) do
+
+  edit_chain=Htk::EditChain.new("edit_chain","MU #{gaussians} {*.state[2-3].mix}")
+  macro_comp.name = "Macros_hmm_#{gaussians}"
+  macro_comp = macro_comp.edit_hmm(edit_chain,opts[:results_directory],morpheme_list)
+  directory = opts[:results_directory]+"/hmm_#{gaussians}"
+  FileUtils.mkdir(directory)
+  macro_comp.name = "Macros_hmm"
+  macro_comp = macro_comp.train(opts[:training_iterations],config_file,directory,morpheme_list,opts[:training_list_file],opts[:training_sample_file])
+  gaussians *= 2
+
+end
+

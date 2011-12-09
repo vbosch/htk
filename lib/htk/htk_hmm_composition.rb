@@ -1,9 +1,10 @@
 module Htk
+  require 'ruby-debug'
   require 'fileutils'
   class HTKHMMComposition
 
     attr_reader :hmms
-    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors, :vec_size, :mixtures
+    attr_accessor :stream_info, :vec_finalizer, :name, :vfloors, :vec_size, :mixture_sets
 
     def initialize(ex_name,ex_vec_size=-1,ex_stream_info ="",ex_vec_finalizer = "<MFCC>" )
       @name = ex_name
@@ -11,7 +12,7 @@ module Htk
       @vec_finalizer = ex_vec_finalizer
       @vec_size = ex_vec_size
       @hmms = Hash.new
-      @mixtures = Hash.new
+      @mixture_sets = Hash.new
       @vfloors = nil
     end
 
@@ -19,6 +20,28 @@ module Htk
       raise "Composition can not contain two Hmms for the same symbol" if @hmms.has_key? hmm.name
       @hmms[hmm.name]=hmm
       @hmms
+    end
+
+
+    def add_mixture_set_from_prototype(name,prototype)
+      tmp_set = HTKHMMMixtureSet.new(prototype.vec_size,name)
+      tmp_set.add_detailed_mixture(1.0,prototype.hmms.first[1].states[1][0].mean,prototype.hmms.first[1].states[1][0].variance,prototype.hmms.first[1].states[1][0].gconst)
+      add_mixture_set(tmp_set)
+    end
+
+    def add_mixture_set(mixture_set)
+      @mixture_sets[mixture_set.name]=mixture_set
+    end
+
+    def apply_mixture_set_to_model(mixture_set_name,model_name,state_range)
+
+      raise "Indicated mixture set does not exist" unless @mixture_sets.has_key? mixture_set_name
+
+      raise "Indicated hmm does not exist" unless @hmms.has_key? model_name
+
+      @hmms[model_name].apply_symbolic_mixture(mixture_set_name,state_range)
+
+
     end
 
     def write
@@ -29,6 +52,7 @@ module Htk
         write_hmms(file)
       end
     end
+
 
     def write_header(file)
       file.puts "~o "
@@ -41,7 +65,7 @@ module Htk
     end
 
     def write_mixtures(file)
-      @mixtures.each_value{|mixture| file.puts mixture.to_s}  unless @mixtures.nil? or @mixtures.size == 0
+      @mixture_sets.each_value{|mixture| file.puts mixture.to_s}  unless @mixture_sets.nil? or @mixture_sets.size == 0
     end
 
     def write_hmms(file)
@@ -50,7 +74,7 @@ module Htk
 
     def HTKHMMComposition.load(file_name)
 
-      raise "specified file does not exist" unless File.exists? file_name
+      raise "specified file #{file_name} does not exist" unless File.exists? file_name
       file = File.open(file_name,"r")
       lines = HTKHMMComposition.read_lines(file)
       stream_info = HTKHMMComposition.extract_stream_info(lines)
@@ -58,8 +82,8 @@ module Htk
       if not stream_info.nil? and not vec_info.nil?
         composition = HTKHMMComposition.new(file_name,vec_info[:size],stream_info,vec_info[:finalizer])
         composition.vfloors =  HTKHMMComposition.extract_vfloors(lines)
-        composition.mixtures = HTKHMMComposition.extract_composition_mixtures(lines)
-        HTKHMMComposition.extract_models(lines,vec_info[:size]).each{|index,hmm|composition.add_hmm(hmm)}
+        composition.mixture_sets = HTKHMMComposition.extract_composition_mixtures(lines,vec_info[:size])
+        HTKHMMComposition.extract_models(lines,vec_info[:size]).each_value{|hmm|composition.add_hmm(hmm)}
       else
         raise "Composition did not contain stream and/or vec information"
       end
@@ -98,14 +122,30 @@ module Htk
 
       lines.each_with_index do |line,index|
           if VFloors.is_vfloor_name_line? line
-            VFloors.load_from_lines(lines[index..index+2],VFloors.extract_vfloor_name(line))
+            return VFloors.load_from_lines(lines[index..index+2],VFloors.extract_vfloor_name(line))
           end
       end
       return nil
     end
 
-    def HTKHMMComposition.extract_composition_mixtures(lines)
-
+    def HTKHMMComposition.extract_composition_mixtures(lines,feature_space_dim)
+      old,current = -1,-1
+      old_name,current_name="",""
+      mixtures = Hash.new
+      lines.each_with_index do |line,index|
+        if HTKHMMMixtureSet.is_symbolic_name_line? line or HTKHMMModel.is_name_line? line
+          old = current
+          current = index
+          old_name=current_name
+          current_name = HTKHMMMixtureSet.extract_symbolic_name_value(line) unless index == lines.size-1
+        end
+        if old != -1 and current !=-1
+          mixtures[old_name]=HTKHMMMixtureSet.read(lines[old...current],feature_space_dim)
+          old = -1
+        end
+        break if HTKHMMModel.is_name_line? line
+      end
+      return mixtures
     end
 
     def HTKHMMComposition.extract_models(lines,feature_space_dim)
@@ -179,17 +219,20 @@ module Htk
     def HTKHMMComposition.compose_from_morpheme_list(ex_name,morpheme_list,prototype,states)
 
       new_composition= HTKHMMComposition.new(ex_name,prototype.vec_size,prototype.stream_info,prototype.vec_finalizer)
-
+      new_composition.vfloors = prototype.vfloors
       mean = prototype.hmms.first[1].states[1][0].mean
       variance = prototype.hmms.first[1].states[1][0].variance
       gconst = prototype.hmms.first[1].states[1][0].gconst
 
       morpheme_list.each do |morpheme|
-        hmm = Htk::HTKHMMModel.strictly_linear_hmm(morpheme,states[morpheme],prototype.vec_size)
+        if states[morpheme].class==Fixnum
+          hmm = Htk::HTKHMMModel.strictly_linear_hmm(morpheme,states[morpheme],prototype.vec_size)
+        else
+          hmm = Htk::HTKHMMModel.ranged_linear_hmm(morpheme,states[morpheme],prototype.vec_size)
+        end
         hmm.set_state_distributions(mean,variance,gconst)
         new_composition.add_hmm(hmm)
       end
-
       return new_composition
     end
 
