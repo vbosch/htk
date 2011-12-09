@@ -1,5 +1,4 @@
 module Htk
-  require 'ruby-debug'
   class MultiSampleLanguageStatisticsList
     attr_reader :consolidated_statistics
     def initialize(ex_file_name,ex_filter_list)

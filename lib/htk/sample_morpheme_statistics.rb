@@ -1,5 +1,4 @@
 module Htk
-  require 'ap'
   class SampleMorphemeStatistics
     attr_reader :morpheme_statistics
     def initialize(ex_name)

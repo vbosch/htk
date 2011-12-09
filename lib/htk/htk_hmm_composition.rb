@@ -1,5 +1,4 @@
 module Htk
-  require 'ruby-debug'
   require 'fileutils'
   class HTKHMMComposition
 

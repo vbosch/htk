@@ -1,11 +1,7 @@
 module Htk
-  require 'ap'
-  require 'ruby-debug'
   class HTKHMMModel
-
     SELF_TRANSITION_PROBABILITY=6.000e-01
     NEXT_TRANSITION_PROBABILITY=4.000e-01
-
     attr_reader :num_states
     attr_accessor :name,:states
 

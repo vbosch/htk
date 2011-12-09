@@ -1,6 +1,5 @@
 module Htk
   class HTKHMMMixtureSet
-
     attr_accessor :name,:mixtures
 
     def initialize(ex_feature_space_dimension,ex_name=nil)

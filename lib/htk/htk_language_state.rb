@@ -1,8 +1,5 @@
 module Htk
-  require 'ap'
-  require 'ruby-debug'
   class HTKLanguageState
-
     attr_reader :id, :label, :type, :transitions
 
     def initialize(ex_id, ex_label,ex_type = :NORMAL)

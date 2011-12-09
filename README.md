@@ -1,44 +1,49 @@
 htk
 ===========
 
-FIXME (describe your package)
+This repository contains classes used in order to process data files and train Hidden Markov Models.
+
+For HMMM training it uses the HTK Software (http://htk.eng.cam.ac.uk/).
 
 Features
 --------
 
-* FIXME (list of features and unsolved problems)
+Delivered classes allow you too:
+    - Use HMM and HMM composition as objects in Ruby.
+    - Train and Edit HMMs from Ruby with temporal file management.
+    - Create HTK Language models and also reestimate its values from a data file.
+    - Load sample data files and extract information to use it for HMMs structure definition.
+    - Provides a sample training script that has a usual training approach coded.
+
 
 Examples
 --------
 
-    FIXME (code sample of usage)
+    Examples of usage are provided in the bin folder: htk and htk_trainer scripts
 
 Requirements
 ------------
 
-* FIXME (list of requirements)
+    - HTK
+    - graphviz ruby gem
+
 
 Install
 -------
 
-* FIXME (sudo gem install, anything else)
+
 
 Author
 ------
 
-Original author: FIXME (author's name)
-
-Contributors:
-
-* FIXME (contributor 1?)
-* FIXME (contributor 2?)
+Original author: Vicente Bosch Campos
 
 License
 -------
 
-(The MIT License) FIXME (different license?)
+(The MIT License)
 
-Copyright (c) 2011 FIXME (author's name)
+Copyright (c) 2011 Vicente Bosch Campos
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
