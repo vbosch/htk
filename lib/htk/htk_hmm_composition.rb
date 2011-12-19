@@ -1,5 +1,6 @@
 module Htk
   require 'fileutils'
+  require 'ap'
   class HTKHMMComposition
 
     attr_reader :hmms
@@ -19,6 +20,20 @@ module Htk
       raise "Composition can not contain two Hmms for the same symbol" if @hmms.has_key? hmm.name
       @hmms[hmm.name]=hmm
       @hmms
+    end
+
+
+    def print_status
+      puts "Num mixtures: #{@mixture_sets.size}"
+      ap @mixture_sets.keys
+      puts "Num hmm models: #{@hmms.size}"
+      ap @hmms.keys
+      @hmms.each_value do |hmm|
+        hmm.print_status
+      end
+
+
+
     end
 
 
@@ -268,8 +283,8 @@ module Htk
       new_model = nil
       FileUtils.cd(directory) do
         write
-        FileUtils.cd(File.dirname(training_list_file)) do
-          iterations.times do
+        iterations.times do
+          FileUtils.cd(File.dirname(training_list_file)) do
             command.run(config_file)
           end
         end

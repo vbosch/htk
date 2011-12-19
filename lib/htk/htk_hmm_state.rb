@@ -22,6 +22,10 @@ module Htk
       @mixture_set.clear
     end
 
+    def num_mixtures
+      @mixture_set.mixtures.size
+    end
+
     def [](val)
       @mixture_set[val]
     end

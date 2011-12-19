@@ -13,7 +13,7 @@ morpheme_list_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/ListHMMs.htk"
 training_sample_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/train.mlf"
 training_detailed_sample_file = "/Users/vbosch/Documents/UPV/Thesis/htk/data/trainIntv.mlf"
 iterations = 4
-gaussians_iteration = 5
+gaussians_iteration = 3
 
 
 filter_list=Htk::SampleList.new(training_list_file)
@@ -35,6 +35,9 @@ morpheme_samples.read
 
 statistics = morpheme_samples.morpheme_length_statistics
 
+ap statistics
+
+=begin
 hmm = Htk::HTKHMMModel.strictly_linear_hmm("proto",4,2)
 prototype = Htk::HTKHMMComposition.new("proto",2)
 prototype.add_hmm(hmm)
@@ -43,6 +46,8 @@ config_file = Htk::ConfigATROS.new
 config_file.SOURCEFORMAT="ATROS"
 config_file.NUMCEPS=8
 config_file.TARGETKIND="MFCC"
+config_file.write
+
 
 initial_estimate_proto = prototype.reestimate_from_training_data(fvar,vvar,training_list_file,directory,config_file)
 
@@ -64,7 +69,9 @@ macro_comp.apply_mixture_set_to_model("plmix","PL",(0..statistics["PL"][:mean]+s
 macro_comp.apply_mixture_set_to_model("nlmix","NL",(0..statistics["NL"][:mean]+statistics["NL"][:std_dev]-1))
 macro_comp.apply_mixture_set_to_model("slmix","SL",(0..statistics["SL"][:mean]+statistics["SL"][:std_dev]-1))
 
+macro_comp.print_status
 macro_comp.write
+
 
 gaussians = 1
 
@@ -77,8 +84,9 @@ gaussians_iteration.times do
   macro_comp = macro_comp.train(iterations,config_file,directory,morpheme_list,training_list_file,training_sample_file)
 
   macro_comp.name = "Macros_hmm_#{gaussians}"
-
+  macro_comp.print_status
+  gets
   gaussians *= 2
 
-end
+=end
 

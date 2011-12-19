@@ -1,4 +1,5 @@
 module Htk
+  require 'ap'
   class HTKHMMModel
     SELF_TRANSITION_PROBABILITY=6.000e-01
     NEXT_TRANSITION_PROBABILITY=4.000e-01
@@ -13,6 +14,12 @@ module Htk
       @next_prob = NEXT_TRANSITION_PROBABILITY
       yield(self) unless proc.nil?
       @states = Array.new
+    end
+
+    def print_status
+      puts "Name: #{@name}"
+      puts "Num States: #{@states.size}"
+      @states.each_index{|index| puts "#{index} -> #{@states[index].num_mixtures}"}
     end
 
     def HTKHMMModel.strictly_linear_hmm(ex_name,ex_num_states,ex_feature_space_dimension,&proc)
@@ -123,6 +130,7 @@ module Htk
       file.puts "<TRANSP> #{@num_states}"
       @states.each do |state|
         file.puts state.transition_to_s
+
       end
     end
 

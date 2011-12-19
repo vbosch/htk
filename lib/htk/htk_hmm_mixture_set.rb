@@ -1,4 +1,5 @@
 module Htk
+  require 'ruby-debug'
   class HTKHMMMixtureSet
     attr_accessor :name,:mixtures
 
@@ -82,6 +83,7 @@ module Htk
       set = HTKHMMMixtureSet.new(ex_feature_space_dimension,name)
       if not HTKHMMMixtureSet.is_just_symbolic_link(lines)
         num_mixtures = HTKHMMMixtureSet.extract_num_mixtures(lines)
+        puts name
         mixtures = HTKHMMMixtureSet.extract_mixtures(lines,num_mixtures,ex_feature_space_dimension)
         set.mixtures=mixtures
       end
@@ -103,12 +105,14 @@ module Htk
           end
           if old != -1 and current !=-1
             mixtures.push HTKHMMMixture.read(lines[old...current],feature_space_dim)
+            puts "#{mixtures.size} - #{old} <-> #{current}"
             old = -1
           end
         end
       end
 
-      raise "Less mixtures found than indicated in the model" if mixtures.size != num_mixtures
+      #raise "Less mixtures found (#{mixtures.size}) than indicated in the model (#{num_mixtures})"
+      #debugger if mixtures.size != num_mixtures
       return mixtures
 
     end

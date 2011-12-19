@@ -31,9 +31,23 @@ module Htk
           update_length_statistics(key,val)
         end
       end
+      calculate_quartiles
       calculate_means
       calculate_standard_deviations
       return @morpheme_statistics
+    end
+
+    def calculate_quartiles
+      @morpheme_statistics.each_key do |morpheme_tag|
+              @morpheme_statistics[morpheme_tag][:elements].sort!
+              @morpheme_statistics[morpheme_tag][:first_quartile]=calculate_quartile(@morpheme_statistics[morpheme_tag][:elements],25)
+              @morpheme_statistics[morpheme_tag][:third_quartile]=calculate_quartile(@morpheme_statistics[morpheme_tag][:elements],75)
+      end
+    end
+
+    def calculate_quartile(elements,percentile)
+      n=(((percentile/100.0)*elements.size)+0.5).round
+      elements[n-1]
     end
 
     def calculate_means
@@ -60,6 +74,7 @@ module Htk
 
     def update_length_statistics(tag,info)
       initialize_category(tag)
+      add_elements(tag,info[:elements])
       update_min_statistics(tag,info[:min])
       update_max_statistics(tag,info[:max])
       update_count_statistics(tag,info[:count])
@@ -68,8 +83,12 @@ module Htk
 
     def initialize_category(tag)
       unless @morpheme_statistics.has_key?(tag)
-        @morpheme_statistics[tag]={:count=>0,:sum=>0,:min=>-1,:max=>-1,:mean=>-1,:std_dev=>-1,:ssq=>-1}
+        @morpheme_statistics[tag]={:count=>0,:sum=>0,:min=>-1,:max=>-1,:mean=>-1,:std_dev=>-1,:ssq=>-1,:first_quartile =>-1,:third_quartile=>-1,:elements =>[]}
       end
+    end
+
+    def add_elements(tag,elements)
+      @morpheme_statistics[tag][:elements].concat(elements)
     end
 
     def update_min_statistics(tag,length)

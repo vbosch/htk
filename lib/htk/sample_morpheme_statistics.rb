@@ -40,16 +40,22 @@ module Htk
     def update_length_statistics(info)
       initialize_category(info)
       length =  (info[:end] - info[:start]).abs
+      add_element(info[:tag],length)
       update_min_statistics(info[:tag],length)
       update_max_statistics(info[:tag],length)
       update_count_statistics(info[:tag])
       update_sum_statistics(info[:tag],length)
     end
 
+
     def initialize_category(info)
       unless @morpheme_statistics.has_key?(info[:tag])
-        @morpheme_statistics[info[:tag]]={:count=>0,:sum=>0,:min=>-1,:max=>-1,:ssq=>0}
+        @morpheme_statistics[info[:tag]]={:count=>0,:sum=>0,:min=>-1,:max=>-1,:ssq=>0, :elements => []}
       end
+    end
+
+    def add_element(tag,element)
+      @morpheme_statistics[tag][:elements].push(element)
     end
 
     def update_sum_of_square_statistics(tag,ssq)
