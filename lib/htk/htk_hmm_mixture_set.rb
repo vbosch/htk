@@ -7,7 +7,19 @@ module Htk
       @name=ex_name
       @mixtures = []
       @feature_space_dimension = ex_feature_space_dimension
+      @num_mixtures = nil
     end
+
+    def num_mixtures=(val)
+      @num_mixtures=val
+    end
+
+    def num_mixtures
+      return @mixtures if @num_mixtures.nil?
+      @num_mixtures
+    end
+
+
 
     def is_symbolic?
       return true if @mixtures.size == 0 and @name != nil
@@ -31,7 +43,7 @@ module Htk
     end
 
     def add_detailed_mixture(mix_probability,mean,variance,gconst=nil)
-      tmp= HTKHMMMixture.new(@mixtures.size+1,mix_probability,@feature_space_dimension)
+      tmp=HTKHMMMixture.new(@mixtures.size+1,mix_probability,@feature_space_dimension)
       tmp.mean = mean
       tmp.variance = variance
       tmp.gconst = gconst
@@ -57,8 +69,8 @@ module Htk
     end
 
     def mixture_number_to_s
-      return "" if @mixtures.size == 1
-      "<NUMMIXES> #{@mixtures.size}\n"
+      return "" if num_mixtures == 1
+      "<NUMMIXES> #{num_mixtures}\n"
     end
 
     def mixtures_to_s
