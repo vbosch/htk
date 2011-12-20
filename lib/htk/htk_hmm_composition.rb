@@ -289,9 +289,14 @@ module Htk
           end
         end
         new_model =HTKHMMComposition.load(@name)
+        new_model.draw
       end
       morpheme_list.restore
-      new_model
+      return new_model
+    end
+
+    def draw
+      @hmms.each_value{|hmm| hmm.draw}
     end
 
   end

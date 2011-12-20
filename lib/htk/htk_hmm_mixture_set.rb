@@ -105,7 +105,7 @@ module Htk
           end
           if old != -1 and current !=-1
             mixtures.push HTKHMMMixture.read(lines[old...current],feature_space_dim)
-            puts "#{mixtures.size} - #{old} <-> #{current}"
+            #puts "#{mixtures.size} - #{old} <-> #{current}"
             old = -1
           end
         end

@@ -119,7 +119,7 @@ gaussians = 1
 
 while(gaussians<=opts[:gaussians]) do
 
-  edit_chain=Htk::EditChain.new("edit_chain","MU #{gaussians} {*.state[2-3].mix}")
+  edit_chain=Htk::EditChain.new("edit_chain","MU #{gaussians} {*.state[2-100].mix}")
   macro_comp.name = "Macros_hmm_#{gaussians}"
   macro_comp = macro_comp.edit_hmm(edit_chain,opts[:results_directory],morpheme_list)
   directory = opts[:results_directory]+"/hmm_#{gaussians}"

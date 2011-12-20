@@ -1,4 +1,5 @@
 module Htk
+  require 'graphviz'
   require 'ap'
   class HTKHMMModel
     SELF_TRANSITION_PROBABILITY=6.000e-01
@@ -245,6 +246,31 @@ module Htk
     def HTKHMMModel.is_end_hmm_line?(line)
       line =~ /<ENDHMM>/
     end
+
+    def draw
+          diagram = GraphViz::new("structs", "type" => "digraph")
+          diagram[:rankdir] = "LR"
+          diagram.node[:color] = "#ddaa66"
+          diagram.node[:style] = "filled"
+          diagram.node[:shape] = "circle"
+          diagram.node[:penwidth] = "1"
+          diagram.node[:fontname] = "Arial"
+          diagram.node[:fontsize] = "8"
+          diagram.node[:fillcolor]= "#ffeecc"
+          diagram.node[:fontcolor]= "#775500"
+          diagram.node[:margin] = "0.0"
+
+
+          @states.each { |state| diagram.add_node(state.position.to_s) }
+          @states.each do |state|
+            state.transitions.each_index do |index|
+              diagram.add_edge(state.position.to_s,index.to_s, :label => state.transitions[index].round(5).to_s)if state.transitions[index]!=0.0
+            end
+          end
+
+          diagram.output(:png => "#{@name}")
+
+        end
 
   end
 end
