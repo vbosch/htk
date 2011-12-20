@@ -94,9 +94,8 @@ module Htk
       name = HTKHMMMixtureSet.extract_symbolic_name(lines)
       set = HTKHMMMixtureSet.new(ex_feature_space_dimension,name)
       if not HTKHMMMixtureSet.is_just_symbolic_link(lines)
-        num_mixtures = HTKHMMMixtureSet.extract_num_mixtures(lines)
-        puts name
-        mixtures = HTKHMMMixtureSet.extract_mixtures(lines,num_mixtures,ex_feature_space_dimension)
+        set.num_mixtures = HTKHMMMixtureSet.extract_num_mixtures(lines)
+        mixtures = HTKHMMMixtureSet.extract_mixtures(lines,set.num_mixtures,ex_feature_space_dimension)
         set.mixtures=mixtures
       end
       return set
