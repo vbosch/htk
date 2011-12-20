@@ -218,6 +218,7 @@ module Htk
 
       FileUtils.cd(File.dirname(training_list)) do
         write
+        gets
         command.run(config_file)
       end
 

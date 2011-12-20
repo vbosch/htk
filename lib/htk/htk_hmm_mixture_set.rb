@@ -15,7 +15,7 @@ module Htk
     end
 
     def num_mixtures
-      return @mixtures if @num_mixtures.nil?
+      return @mixtures.size if @num_mixtures.nil?
       @num_mixtures
     end
 
@@ -69,8 +69,8 @@ module Htk
     end
 
     def mixture_number_to_s
-      return "" if num_mixtures == 1
-      "<NUMMIXES> #{num_mixtures}\n"
+      return "" if self.num_mixtures == 1
+      "<NUMMIXES> #{self.num_mixtures}\n"
     end
 
     def mixtures_to_s
