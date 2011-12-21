@@ -76,7 +76,7 @@ def calculate_states4hmms(opts,statistics)
 
   if opts[:optimize_morphemes] and opts[:optimize_morphemes].size>0
    opts[:optimize_morphemes].each do |morpheme_tag|
-      states[morpheme_tag]=(statistics[morpheme_tag][:first_quartile]..statistics[morpheme_tag][:third_quartile]-1)
+      states[morpheme_tag]=(statistics[morpheme_tag][:min]..(statistics[morpheme_tag][:mean]+statistics[morpheme_tag][:std_dev]-1))
    end
   end
   return states
@@ -87,7 +87,7 @@ def update_composition_with_mixtures(macro_comp,initial_estimate_proto,opts,stat
   if opts[:optimize_morphemes] and opts[:optimize_morphemes].size>0
     opts[:optimize_morphemes].each do |morpheme_tag|
       macro_comp.add_mixture_set_from_prototype("#{morpheme_tag}mix",initial_estimate_proto)
-      macro_comp.apply_mixture_set_to_model("#{morpheme_tag}mix",morpheme_tag,(0..statistics[morpheme_tag][:third_quartile]-1))
+      macro_comp.apply_mixture_set_to_model("#{morpheme_tag}mix",morpheme_tag,(0..statistics[morpheme_tag][:min]-1))
 
     end
   end
