@@ -218,7 +218,6 @@ module Htk
 
       FileUtils.cd(File.dirname(training_list)) do
         write
-        gets
         command.run(config_file)
       end
 
@@ -273,6 +272,7 @@ module Htk
         command.parameters[:A]=true
         command.parameters[:T]=1
         command.parameters[:m]=1
+        command.parameters[:w]=2.0
         command.parameters[:u]="tmvw"
         command.parameters[:S]= training_list_file
         command.parameters[:I]=[training_sample_file]
